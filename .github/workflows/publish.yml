@@ -1,0 +1,56 @@
+name: publish
+
+# Shared workflow for cards repos. A cards repo calls it from its own
+# .github/workflows/cards.yml (see `deckhand init`). It runs in the CALLER's
+# repo: validates its cards, builds deck.json + manifest.json and, when
+# `publish` is true, force-pushes them to the caller's `published` branch.
+# Card content never leaves the caller's repo.
+
+on:
+  workflow_call:
+    inputs:
+      deckhand-repo:
+        description: owner/name of the deckhand repo to install the tool from
+        type: string
+        default: AbsoluteZero000/deckhand
+      deckhand-ref:
+        description: branch or tag of deckhand to install
+        type: string
+        default: main
+      publish:
+        description: push the build to the published branch
+        type: boolean
+        default: true
+
+jobs:
+  cards:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deckhand
+        run: pip install "git+https://github.com/${{ inputs.deckhand-repo }}@${{ inputs.deckhand-ref }}"
+      - name: Validate
+        run: deckhand validate
+      - name: Check formatting
+        run: deckhand fmt --check
+      - name: Build
+        run: deckhand build --out dist
+      - name: Publish to the published branch
+        if: inputs.publish
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          version=$(python -c "import json;print(json.load(open('manifest.json'))['version'])")
+          git init -q -b published
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json deck.json
+          git commit -q -m "Publish cards ${version} from ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" published
+          echo "Published version ${version}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,38 @@
+name: ci
+
+# Checks the tool itself: installs the package, scaffolds a cards repo with
+# `deckhand init`, and runs every command against it. No real cards here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tool:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Scaffold and exercise a cards repo
+        run: |
+          deckhand init "$RUNNER_TEMP/demo"
+          cd "$RUNNER_TEMP/demo"
+          test -f .github/workflows/cards.yml && test -f .gitignore
+          deckhand validate
+          deckhand fmt --check
+          deckhand add --deck example --section basics --front "CI check?" --back "Yes." --tags ci
+          deckhand new-deck second --name "Second"
+          deckhand new-section --deck second --id one --name "One"
+          deckhand edit example-ci-check --move-to second/one --add-tag moved
+          deckhand tree
+          deckhand rm example-ci-check
+          deckhand validate
+          deckhand build
+          python -c "import json;m=json.load(open('dist/manifest.json'));assert m['cards']==2,m"

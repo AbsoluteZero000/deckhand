@@ -1,0 +1,29 @@
+name: cards
+
+# Validates the cards on every change. On main it also builds deck.json +
+# manifest.json and force-pushes them to the `published` branch of THIS repo,
+# where the app reads them through the GitHub API with a read-only token.
+# The logic lives in deckhand's shared workflow; nothing leaves this repo.
+
+on:
+  push:
+    branches: [main]
+    paths: ["cards/**", ".github/workflows/cards.yml"]
+  pull_request:
+    paths: ["cards/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-cards
+  cancel-in-progress: false
+
+jobs:
+  cards:
+    uses: {{DECKHAND_REPO}}/.github/workflows/publish.yml@{{DECKHAND_REF}}
+    with:
+      deckhand-repo: {{DECKHAND_REPO}}
+      deckhand-ref: {{DECKHAND_REF}}
+      publish: ${{ github.event_name != 'pull_request' }}

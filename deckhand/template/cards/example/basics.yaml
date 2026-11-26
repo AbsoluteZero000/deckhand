@@ -1,0 +1,14 @@
+section:
+  id: basics
+  name: Basics
+  order: 1
+cards:
+- id: example-what-is-spaced-repetition
+  front: What is spaced repetition?
+  back: Reviewing a card at growing intervals, sooner when you miss it.
+  why: Each successful recall makes the memory last longer, so gaps can grow.
+  tags: [learning]
+- id: example-how-do-cards-reach-the-phone
+  front: How do new cards reach the phone?
+  back: Push to `main`; CI publishes them and the app syncs on open.
+  tags: [deckhand]
