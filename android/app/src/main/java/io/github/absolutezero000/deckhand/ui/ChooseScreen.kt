@@ -105,12 +105,13 @@ fun ChooseScreen(
 ) {
     val vm = viewModel(key = "choose-$deckId") { ChooseViewModel(repo, deckId) }
     val dueCount = vm.count(Mode.DUE)
-    val cramCount = vm.count(Mode.CRAM)
-    val moreCount = vm.count(Mode.MORE)
+    val practiceCount = vm.count(Mode.PRACTICE)
+    // "New" only offers unseen cards; once none are left, Practice covers the rest.
+    val moreCount = if (vm.moreKind() == MoreKind.NEW) vm.count(Mode.MORE) else 0
     val count = when (vm.mode) {
         Mode.DUE -> dueCount
         Mode.MORE -> moreCount
-        Mode.CRAM -> cramCount
+        Mode.PRACTICE -> practiceCount
     }
 
     Scaffold(
@@ -146,7 +147,7 @@ fun ChooseScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf(Mode.DUE to "Due · $dueCount", Mode.MORE to "More · $moreCount", Mode.CRAM to "Cram · $cramCount")
+                listOf(Mode.DUE to "Due · $dueCount", Mode.MORE to "New · $moreCount", Mode.PRACTICE to "Practice · $practiceCount")
                     .forEachIndexed { i, (m, label) ->
                         SegmentedButton(
                             selected = vm.mode == m, onClick = { vm.mode = m },
@@ -158,10 +159,9 @@ fun ChooseScreen(
             Text(
                 when (vm.mode) {
                     Mode.DUE -> "Cards due today plus up to ${vm.newToday} new. Grades update the schedule."
-                    Mode.MORE -> if (vm.moreKind() == MoreKind.AHEAD)
-                        "No new cards left, so this is practice ahead: the cards due soonest. The schedule isn't changed."
-                    else "Keep going past today's limit: anything due plus the next $MORE_BATCH new cards. Grades update the schedule."
-                    Mode.CRAM -> "Every matching card, in order. The schedule isn't changed."
+                    Mode.MORE -> if (moreCount == 0) "No new cards left here. Use Practice to go over the rest."
+                    else "Past today's limit: anything due plus the next $MORE_BATCH new cards. Grades update the schedule."
+                    Mode.PRACTICE -> "Every matching card, soonest due first. Go over them as often as you like; the schedule isn't changed."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

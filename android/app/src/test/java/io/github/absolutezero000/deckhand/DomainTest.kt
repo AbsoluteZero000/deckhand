@@ -67,10 +67,17 @@ class QueueTest {
     }
 
     @Test fun filtersBySectionAndAllTags() {
-        val q = Queue.build(cards, emptyMap(), Filter(tags = setOf("x", "y")), Mode.CRAM, 0, 0)
+        val q = Queue.build(cards, emptyMap(), Filter(tags = setOf("x", "y")), Mode.PRACTICE, 0, 0)
         assertEquals(listOf("b"), q)
-        val s2 = Queue.build(cards, emptyMap(), Filter(sections = setOf("s2")), Mode.CRAM, 0, 0)
+        val s2 = Queue.build(cards, emptyMap(), Filter(sections = setOf("s2")), Mode.PRACTICE, 0, 0)
         assertEquals(listOf("c", "d"), s2)
+    }
+
+    @Test fun practiceIsSoonestDueFirstThenUnseen() {
+        val progress = mapOf("d" to due("d", 30), "b" to due("b", 12), "e" to due("e", 12))
+        val q = Queue.build(cards, progress, Filter(), Mode.PRACTICE, today = 10, newAllowance = 0)
+        assertEquals(listOf("b", "e", "d", "a", "c"), q)
+        assertFalse(Queue.schedules(Mode.PRACTICE, io.github.absolutezero000.deckhand.domain.MoreKind.NONE))
     }
 
     @Test fun moreGivesNewCardsPastTheLimitThenPracticeAhead() {

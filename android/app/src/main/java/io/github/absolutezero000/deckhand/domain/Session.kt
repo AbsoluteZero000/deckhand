@@ -6,9 +6,9 @@ import io.github.absolutezero000.deckhand.data.Progress
 /**
  * DUE: today's work (due cards plus new cards up to the daily limit).
  * MORE: "keep going" after today's work, see [Queue.more].
- * CRAM: every matching card, schedule untouched.
+ * PRACTICE: every matching card, soonest due first, schedule untouched.
  */
-enum class Mode { DUE, MORE, CRAM }
+enum class Mode { DUE, MORE, PRACTICE }
 
 /** What a MORE session holds: extra new cards (scheduled normally), or practice ahead (schedule untouched). */
 enum class MoreKind { NEW, AHEAD, NONE }
@@ -25,7 +25,7 @@ object Queue {
     /**
      * Cards for a session, in study order.
      * DUE: due cards (oldest due first, then deck order), then new cards in deck order up to [newAllowance].
-     * CRAM: every matching card in deck order.
+     * PRACTICE: every matching card: seen cards soonest due first, then unseen cards in deck order.
      * [cards] must already be in deck order.
      */
     fun build(
@@ -33,7 +33,11 @@ object Queue {
         mode: Mode, today: Long, newAllowance: Int,
     ): List<String> {
         val matching = cards.filter(filter::matches)
-        if (mode == Mode.CRAM) return matching.map { it.id }
+        if (mode == Mode.PRACTICE) {
+            val (seen, unseen) = matching.withIndex().partition { (_, c) -> c.id in progress }
+            return seen.sortedWith(compareBy({ progress.getValue(it.value.id).dueDay }, { it.index })).map { it.value.id } +
+                unseen.map { it.value.id }
+        }
         if (mode == Mode.MORE) return more(cards, progress, filter, today).second
         val due = matching.withIndex()
             .mapNotNull { (i, c) -> progress[c.id]?.takeIf { it.dueDay <= today }?.let { Triple(c.id, it.dueDay, i) } }
@@ -68,7 +72,7 @@ object Queue {
     fun schedules(mode: Mode, kind: MoreKind): Boolean = when (mode) {
         Mode.DUE -> true
         Mode.MORE -> kind == MoreKind.NEW
-        Mode.CRAM -> false
+        Mode.PRACTICE -> false
     }
 
     fun counts(cards: List<CardEntity>, progress: Map<String, Progress>, today: Long): Pair<Int, Int> {
