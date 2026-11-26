@@ -14,7 +14,7 @@ deckhand/template/                files `deckhand init` writes into a new cards 
 .github/workflows/publish.yml     shared workflow that cards repos call to validate and publish
 .github/workflows/ci.yml          checks the tool by scaffolding and exercising a demo cards repo
 pyproject.toml                    pip package; installs the `deckhand` command
-android/                          the app (reads <owner>/<repo>@published with a read-only token)
+android/                          the app (reads <owner>/<repo>@published; edits commit to main)
 ```
 
 ## Developing

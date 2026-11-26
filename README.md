@@ -4,7 +4,7 @@ Swipe flashcards on Android, with the cards kept as plain YAML in **your own pri
 so you and AI agents can add, edit and remove them easily.
 
 - **Bring your own repo.** deckhand is the tool, the CI workflow and the app. Your cards live in a
-  separate private repo that only you (and your phone's read-only token) can read.
+  separate private repo that only you and the app you connect can read.
 - **Decks and sections** group the cards; each card can carry any number of **tags**.
 - **Offline app.** It keeps everything in a local database, syncs new content from your repo, and
   never loses study progress when cards change.
@@ -51,7 +51,8 @@ Use `--root <path>` or `DECKHAND_ROOT` to point it elsewhere. `deckhand --help` 
 
 Install the APK from the latest `app-v*` [release](https://github.com/AbsoluteZero000/deckhand/releases).
 Tap a card to flip it, swipe right if you knew it and left if you missed it. You can study a whole deck,
-some sections, or only cards with certain tags, either the cards due today (**Due**) or everything (**Cram**).
+some sections, or only cards with certain tags, the cards due today (**Due**), more new cards past the daily limit (**New**), or everything without touching
+the schedule (**Practice**).
 Progress stays on the phone; **Settings → Export progress** saves a backup file.
 **Try the example deck** on the first screen shows the app without connecting a repo.
 Design: [docs/app-design.md](docs/app-design.md). Releasing: [docs/releasing.md](docs/releasing.md).
@@ -62,7 +63,7 @@ Tap **Connect with GitHub**: enter the short code it shows on github.com, instal
 **only your cards repo**, then pick that repo in the app. The app can only see repos you install it on, and only
 their contents. (Maintainers: see [docs/github-app.md](docs/github-app.md) for how the app is registered.)
 
-Or, under **Use a token instead**, enter:
+No GitHub App configured (e.g. your own fork)? Under **Advanced: use a token** on the setup screen, enter:
 
 - **Repository:** `owner/name` of your cards repo
 - **Token:** a fine-grained personal access token (GitHub → Settings → Developer settings →

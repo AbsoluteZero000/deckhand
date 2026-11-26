@@ -13,16 +13,13 @@ git commit -am "Add card"; git push
 
 ## Keep this repo private
 
-The app reads cards straight from this repo with your token, so the repo never needs to be public.
+The app reads cards straight from this repo through the GitHub API, so the repo never needs to be public.
 
 ## Connect the app
 
 1. Push to `main` once, and check that the **cards** workflow created a `published` branch.
-2. In the app, tap **Connect with GitHub**, approve the code on github.com, install the deckhand app on
-   only this repository, and pick it. That's all. To use a token instead, create a fine-grained personal access token (GitHub → Settings → Developer settings →
-   Fine-grained tokens):
-   - **Repository access:** only this repository
-   - **Permissions:** Contents → Read and write to edit cards in the app, or Read-only to just study (nothing else)
-   - **Expiration:** your choice; the app tells you when it stops working
-3. In the app's Settings, enter this repo as `owner/{{NAME}}` and paste the token.
-   The app stores the token encrypted on the phone.
+2. In the app, tap **Connect with GitHub**, enter the code on github.com, install the deckhand app on
+   **only this repository**, and pick it in the app.
+
+No GitHub App available? Use **Advanced: use a token** on the setup screen with a fine-grained token limited to
+this repository (Contents → Read and write to edit cards in the app, Read-only to just study).

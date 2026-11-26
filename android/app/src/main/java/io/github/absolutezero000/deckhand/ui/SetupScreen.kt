@@ -169,7 +169,7 @@ class SetupViewModel(private val repo: Repository) : ViewModel() {
 fun SetupScreen(repo: Repository, canGoBack: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
     val vm = viewModel { SetupViewModel(repo) }
     val ctx = LocalContext.current
-    var showToken by rememberSaveable { mutableStateOf(!vm.available) }
+    var showToken by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -193,13 +193,7 @@ fun SetupScreen(repo: Repository, canGoBack: Boolean, onBack: () -> Unit, onDone
             if (!canGoBack) BrandHeader()
 
             if (vm.available) GitHubConnect(vm, ctx, onDone)
-
-            if (vm.available) {
-                TextButton(onClick = { showToken = !showToken }) {
-                    Text(if (showToken) "Hide token sign-in" else "Use a token instead")
-                }
-            }
-            AnimatedVisibility(showToken) { TokenConnect(repo, onDone) }
+            else TokenConnect(repo, onDone)
 
             if (!canGoBack) {
                 HorizontalDivider()
@@ -207,6 +201,17 @@ fun SetupScreen(repo: Repository, canGoBack: Boolean, onBack: () -> Unit, onDone
                     Text("Just looking?", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     OutlinedButton(onClick = { scope.launch { repo.loadDemo(); onDone() } }) { Text("Try the example deck") }
                 }
+            }
+
+            if (vm.available) {
+                TextButton(onClick = { showToken = !showToken }) {
+                    Text(
+                        if (showToken) "Hide advanced" else "Advanced: use a token",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                AnimatedVisibility(showToken) { TokenConnect(repo, onDone) }
             }
             Spacer(Modifier.height(24.dp))
         }

@@ -116,8 +116,8 @@ data class StudyUi(
 ) {
     val schedules get() = Queue.schedules(mode, kind)
     val modeLabel get() = when {
-        mode == Mode.CRAM -> "CRAM"
-        mode == Mode.MORE && kind == MoreKind.AHEAD -> "PRACTICE AHEAD"
+        mode == Mode.PRACTICE -> "PRACTICE"
+        mode == Mode.MORE && kind == MoreKind.AHEAD -> "PRACTICE"
         mode == Mode.MORE -> "EXTRA"
         else -> "STUDY"
     }
@@ -208,7 +208,7 @@ class StudyViewModel(
             val days = repo.dao.reviewDays(repo.today() - 400).first()
             Streak.days(days.filter { it.count > 0 }.map { it.day }.toSet(), repo.today())
         } else ui.streak
-        val nextMore = if (s.isDone && mode != Mode.CRAM) previewMore() else MoreKind.NONE to 0
+        val nextMore = if (s.isDone && mode != Mode.PRACTICE) previewMore() else MoreKind.NONE to 0
         ui = StudyUi(
             loading = false,
             card = card,
@@ -265,11 +265,11 @@ class StudyViewModel(
         }
     }
 
-    /** Cram through the cards missed in this session. */
+    /** Practice the cards missed in this session. */
     fun reviewMissed() = viewModelScope.launch {
         lock.withLock {
             val missed = ui.missed
-            mode = Mode.CRAM
+            mode = Mode.PRACTICE
             kind = MoreKind.NONE
             start(missed)
         }
@@ -549,7 +549,7 @@ private fun CardFace(card: CardEntity, label: CardLabel?, back: Boolean) {
 fun KeepGoing(kind: MoreKind, count: Int, onClick: () -> Unit, onDark: Boolean = false) {
     val (title, sub) = when (kind) {
         MoreKind.NEW -> "Keep going" to "$count more card${if (count == 1) "" else "s"}, past today's limit"
-        else -> "Practice ahead" to "$count card${if (count == 1) "" else "s"} due soonest · schedule unchanged"
+        else -> "Practice" to "$count card${if (count == 1) "" else "s"} due soonest · schedule unchanged"
     }
     androidx.compose.material3.OutlinedButton(
         onClick = onClick,
