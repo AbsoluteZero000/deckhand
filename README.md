@@ -47,14 +47,31 @@ Use `--root <path>` or `DECKHAND_ROOT` to point it elsewhere. `deckhand --help` 
    `deck.json` the same way, checks its sha256, and applies it by card id: new cards are added,
    edited cards updated, removed cards deleted.
 
+## The app
+
+Install the APK from the latest `app-v*` [release](https://github.com/AbsoluteZero000/deckhand/releases).
+Tap a card to flip it, swipe right if you knew it and left if you missed it. You can study a whole deck,
+some sections, or only cards with certain tags, either the cards due today (**Due**) or everything (**Cram**).
+Progress stays on the phone; **Settings → Export progress** saves a backup file.
+**Try the example deck** on the first screen shows the app without connecting a repo.
+Design: [docs/app-design.md](docs/app-design.md). Releasing: [docs/releasing.md](docs/releasing.md).
+
 ## Connecting the app
 
-In the app's Settings, enter:
+On the app's first screen (or **Settings → Change**), enter:
 
 - **Repository:** `owner/name` of your cards repo
 - **Token:** a fine-grained personal access token (GitHub → Settings → Developer settings →
-  Fine-grained tokens) with **only that repository** and **Contents → Read-only**. The app stores
-  it encrypted on the phone and tells you when it expires.
+  Fine-grained tokens) with **only that repository** and **Contents → Read and write** if you want to
+  edit cards in the app, or **Read-only** to only study. The app stores it encrypted on the phone and
+  tells you when it expires.
+
+## Editing cards on the phone
+
+Tap the pencil on a card while studying, or the edit icon on a deck to browse, search, add and delete cards.
+Each save commits that card's section file to your cards repo. The app writes valid YAML in a simple
+quoted style; the cards workflow then formats it canonically (committing `Format cards`) and republishes,
+so other phones get the change about a minute later. Pull requests are still checked strictly.
 
 ## Using your own fork
 

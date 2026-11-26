@@ -1,0 +1,80 @@
+name: android
+
+# Builds and unit-tests the app on every change to android/. On an `app-v*` tag it
+# builds a signed release APK and attaches it to a GitHub Release.
+#
+# Release signing needs these repository secrets (see docs/releasing.md):
+#   DECKHAND_KEYSTORE_B64       base64 of the release keystore (.jks)
+#   DECKHAND_KEYSTORE_PASSWORD  keystore password
+#   DECKHAND_KEY_ALIAS          key alias
+#   DECKHAND_KEY_PASSWORD       key password
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml"]
+    tags: ["app-v*"]
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests and debug build
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deckhand-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/app-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build signed release APK
+        env:
+          KEYSTORE_B64: ${{ secrets.DECKHAND_KEYSTORE_B64 }}
+          DECKHAND_KEYSTORE_PASSWORD: ${{ secrets.DECKHAND_KEYSTORE_PASSWORD }}
+          DECKHAND_KEY_ALIAS: ${{ secrets.DECKHAND_KEY_ALIAS }}
+          DECKHAND_KEY_PASSWORD: ${{ secrets.DECKHAND_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Release signing secrets are missing"; exit 1; fi
+          export DECKHAND_KEYSTORE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_B64" | base64 -d > "$DECKHAND_KEYSTORE"
+          export DECKHAND_VERSION_NAME="${GITHUB_REF_NAME#app-v}"
+          export DECKHAND_VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          ./gradlew --no-daemon assembleRelease
+          rm -f "$DECKHAND_KEYSTORE"
+          mv app/build/outputs/apk/release/app-release.apk "deckhand-${DECKHAND_VERSION_NAME}.apk"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" deckhand-*.apk \
+            --title "deckhand app ${GITHUB_REF_NAME#app-v}" --generate-notes
