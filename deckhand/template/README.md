@@ -21,7 +21,7 @@ The app reads cards straight from this repo with your token, so the repo never n
 2. Create a fine-grained personal access token (GitHub → Settings → Developer settings →
    Fine-grained tokens):
    - **Repository access:** only this repository
-   - **Permissions:** Contents → Read-only (nothing else)
+   - **Permissions:** Contents → Read and write to edit cards in the app, or Read-only to just study (nothing else)
    - **Expiration:** your choice; the app tells you when it stops working
 3. In the app's Settings, enter this repo as `owner/{{NAME}}` and paste the token.
    The app stores the token encrypted on the phone.

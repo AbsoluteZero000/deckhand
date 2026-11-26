@@ -36,8 +36,21 @@ jobs:
         run: pip install "git+https://github.com/${{ inputs.deckhand-repo }}@${{ inputs.deckhand-ref }}"
       - name: Validate
         run: deckhand validate
-      - name: Check formatting
-        run: deckhand fmt --check
+      # Pull requests must already be formatted. On a publishing push (for example an edit
+      # made in the app, which writes valid but non-canonical YAML) the files are formatted
+      # here and the fix is committed back before publishing.
+      - name: Format
+        run: |
+          if [ "${{ inputs.publish }}" != "true" ]; then deckhand fmt --check; exit; fi
+          deckhand fmt
+          if [ -n "$(git status --porcelain -- cards)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- cards
+            git commit -q -m "Format cards"
+            git push -q origin "HEAD:${GITHUB_REF_NAME}"
+            echo "Formatted and committed card files" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Build
         run: deckhand build --out dist
       - name: Publish to the published branch
