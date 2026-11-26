@@ -58,7 +58,11 @@ Design: [docs/app-design.md](docs/app-design.md). Releasing: [docs/releasing.md]
 
 ## Connecting the app
 
-On the app's first screen (or **Settings → Change**), enter:
+Tap **Connect with GitHub**: enter the short code it shows on github.com, install the deckhand GitHub App on
+**only your cards repo**, then pick that repo in the app. The app can only see repos you install it on, and only
+their contents. (Maintainers: see [docs/github-app.md](docs/github-app.md) for how the app is registered.)
+
+Or, under **Use a token instead**, enter:
 
 - **Repository:** `owner/name` of your cards repo
 - **Token:** a fine-grained personal access token (GitHub → Settings → Developer settings →

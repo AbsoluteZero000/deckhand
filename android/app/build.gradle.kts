@@ -21,6 +21,12 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("DECKHAND_VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("DECKHAND_VERSION_NAME") ?: "0.1.0-dev"
+        // The deckhand GitHub App used by "Connect with GitHub" (public values; see docs/github-app.md).
+        // Leave them empty to build without the button (people then paste a token instead).
+        val clientId = providers.gradleProperty("deckhand.github.clientId").getOrElse("")
+        val appSlug = providers.gradleProperty("deckhand.github.appSlug").getOrElse("")
+        buildConfigField("String", "GITHUB_CLIENT_ID", "\"$clientId\"")
+        buildConfigField("String", "GITHUB_APP_SLUG", "\"$appSlug\"")
     }
 
     signingConfigs {
