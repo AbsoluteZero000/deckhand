@@ -18,7 +18,8 @@ The app reads cards straight from this repo with your token, so the repo never n
 ## Connect the app
 
 1. Push to `main` once, and check that the **cards** workflow created a `published` branch.
-2. Create a fine-grained personal access token (GitHub → Settings → Developer settings →
+2. In the app, tap **Connect with GitHub**, approve the code on github.com, install the deckhand app on
+   only this repository, and pick it. That's all. To use a token instead, create a fine-grained personal access token (GitHub → Settings → Developer settings →
    Fine-grained tokens):
    - **Repository access:** only this repository
    - **Permissions:** Contents → Read and write to edit cards in the app, or Read-only to just study (nothing else)

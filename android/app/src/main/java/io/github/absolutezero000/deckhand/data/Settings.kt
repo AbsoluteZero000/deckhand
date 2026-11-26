@@ -25,6 +25,8 @@ data class SettingsState(
     val lastError: String?,
     val newPerDay: Int,
     val theme: ThemeMode,
+    /** GitHub login when connected with "Connect with GitHub"; null for a pasted token. */
+    val account: String?,
 ) {
     val configured get() = demo || (repo != null && hasToken)
 }
@@ -40,6 +42,7 @@ class Settings(private val context: Context) {
         val newPerDay = intPreferencesKey("new_per_day")
         val demo = booleanPreferencesKey("demo")
         val theme = stringPreferencesKey("theme")
+        val account = stringPreferencesKey("account")
     }
 
     val state: Flow<SettingsState> = context.store.data.map { it.toState() }
@@ -49,6 +52,7 @@ class Settings(private val context: Context) {
         contentVersion = this[K.version], lastSyncMillis = this[K.lastSync] ?: 0,
         lastError = this[K.lastError], newPerDay = this[K.newPerDay] ?: DEFAULT_NEW_PER_DAY,
         theme = this[K.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+        account = this[K.account],
     )
 
     suspend fun setTheme(mode: ThemeMode) = context.store.edit { it[K.theme] = mode.name }
@@ -65,9 +69,12 @@ class Settings(private val context: Context) {
     suspend fun etag(): String? = context.store.data.first()[K.etag]
 
     /** Saves a verified connection and its first sync result. */
-    suspend fun saveConnection(repo: String, token: String, version: String, etag: String?, nowMillis: Long) {
+    suspend fun saveConnection(
+        repo: String, token: String, version: String, etag: String?, nowMillis: Long, account: String? = null,
+    ) {
         val enc = TokenCipher.encrypt(token)
         context.store.edit {
+            if (account != null) it[K.account] = account else it.remove(K.account)
             it[K.repo] = repo
             it[K.token] = enc
             it[K.demo] = false
@@ -79,7 +86,7 @@ class Settings(private val context: Context) {
     }
 
     suspend fun setDemo(version: String) = context.store.edit {
-        it.remove(K.repo); it.remove(K.token); it.remove(K.etag); it.remove(K.lastError)
+        it.remove(K.repo); it.remove(K.token); it.remove(K.etag); it.remove(K.lastError); it.remove(K.account)
         it[K.demo] = true
         it[K.version] = version
         it[K.lastSync] = 0
@@ -99,7 +106,7 @@ class Settings(private val context: Context) {
     /** Forgets the repo, token and sync state but keeps preferences like the daily limit. */
     suspend fun clearConnection() = context.store.edit {
         it.remove(K.repo); it.remove(K.token); it.remove(K.etag); it.remove(K.version)
-        it.remove(K.lastSync); it.remove(K.lastError); it.remove(K.demo)
+        it.remove(K.lastSync); it.remove(K.lastError); it.remove(K.demo); it.remove(K.account)
     }
 
     companion object {

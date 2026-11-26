@@ -119,7 +119,8 @@ fun SettingsScreen(repo: Repository, onBack: () -> Unit, onChangeRepo: () -> Uni
                 supportingContent = {
                     Text(
                         if (st.demo) "Connect your own repo to study your cards."
-                        else "Content version ${st.contentVersion?.take(7) ?: "–"}" +
+                        else (st.account?.let { "Signed in as @$it · " } ?: "Token · ") +
+                            "content version ${st.contentVersion?.take(7) ?: "–"}" +
                             (st.lastError?.let { "\n$it" } ?: ""),
                     )
                 },

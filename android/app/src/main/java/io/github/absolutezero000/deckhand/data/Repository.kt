@@ -12,6 +12,7 @@ class Repository(
     val settings: Settings,
     private val fetcher: DeckFetcher,
     private val writer: CardWriter,
+    val auth: GitHubAuth,
 ) {
     private val syncLock = Mutex()
 
@@ -42,12 +43,12 @@ class Repository(
     }
 
     /** Verifies a new repo + token with a full download, then saves them. Returns an error message or null. */
-    suspend fun connect(repo: String, token: String): String? = syncLock.withLock {
+    suspend fun connect(repo: String, token: String, account: String? = null): String? = syncLock.withLock {
         try {
             val r = fetcher.fetch(repo.trim(), token.trim(), knownVersion = null, etag = null)
             val fresh = r as FetchResult.Fresh
             apply(fresh.deck)
-            settings.saveConnection(repo.trim(), token.trim(), fresh.deck.version, fresh.etag, System.currentTimeMillis())
+            settings.saveConnection(repo.trim(), token.trim(), fresh.deck.version, fresh.etag, System.currentTimeMillis(), account)
             null
         } catch (e: SyncException) {
             e.message
