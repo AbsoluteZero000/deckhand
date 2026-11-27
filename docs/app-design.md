@@ -86,12 +86,14 @@ Times are in whole local days (`epoch day`). A card with no `progress` row is **
   schedules it 1 day out.
 - New cards start with `ease = 2.5`; `first_seen` is set on the first grade. Today's new-card allowance is
   `new_per_day − (cards first seen today)`.
-- **Due session** order: due cards (oldest due first), then new cards in deck/section/card order up to the allowance.
+- **Due session** order: due cards (oldest due first), then new cards taken in turn from each section (each section in card order) up to the allowance, so a day spans every lesson.
 - **Practice** (seen cards soonest due first, then unseen in deck order) never changes `progress`; missed cards still come back 4 cards later in the session.
 - **Keep going / More** (after today's work, from Home, the summary, or the Choose screen's **New** tab, with the same
   section/tag filters): anything still due plus the next 10 new cards past the daily limit, scheduled normally. When no
   new cards are left, Keep going offers **Practice** on the 10 cards due soonest, graded without touching their schedule,
   because reviewing early would stretch their gaps unfairly.
+- **Ask AI** (Study top bar) builds a prompt from the deck name, description and `context`, the section name and
+  `context`, then the card (front, back, why, tags); copies it to the clipboard and opens the share sheet.
 - **Undo** restores the previous `progress` row (or deletes it if the card was new) and puts the card back in front.
 
 ## Export / Import

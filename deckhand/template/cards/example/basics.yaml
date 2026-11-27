@@ -2,6 +2,7 @@ section:
   id: basics
   name: Basics
   order: 1
+  context: How spaced repetition and active recall work, and why they beat rereading notes.
 cards:
 - id: example-what-is-spaced-repetition
   front: What is spaced repetition?

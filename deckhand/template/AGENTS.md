@@ -7,7 +7,7 @@ Pushing to `main` publishes the content; every installed app picks it up on its 
 ## Layout
 
 ```
-cards/<deck>/deck.yaml          one folder per deck (top-level group)
+cards/<deck>/deck.yaml          one folder per deck (top-level group): id, name, description, order, context
 cards/<deck>/<section>.yaml     sections inside a deck, each holding a list of cards
 dist/                           build output (deck.json, manifest.json); never commit
 ```
@@ -19,6 +19,7 @@ section:
   id: l4-routing          # must equal the file name
   name: L4 Routing        # shown in the app
   order: 4                # sort order inside the deck
+  context: Static and dynamic routing, and how a route is chosen.   # optional
 cards:
 - id: net-route-selection-rule-1
   front: 'Route selection rule #1?'
@@ -28,6 +29,11 @@ cards:
 ```
 
 Card fields: `id`, `front`, `back` are required; `why` and `tags` are optional. Nothing else is allowed.
+
+`context` (optional, on a deck and on a section) is background for the app's **Ask AI** button: it copies
+the deck context, then the section context, then the card, so an AI can answer questions about it.
+Deck context: what the deck is for (course, exam, product version, level). Section context: what this
+lesson covers. One to three sentences each; don't repeat card content.
 Text can use `` `backticks` `` for code/IPs/commands; the app renders them in monospace.
 
 ## Rules
@@ -64,8 +70,8 @@ deckhand edit <id> --back "New answer" --add-tag exam-trap --remove-tag weak
 deckhand edit <id> --move-to other-section      # or deck/section
 deckhand rm <id> [<id> ...]
 
-deckhand new-deck ccna --name "CCNA" --description "Cisco CCNA notes"
-deckhand new-section --deck ccna --id l1-basics --name "L1 Basics" --order 1
+deckhand new-deck ccna --name "CCNA" --description "Cisco CCNA notes" --context "Cisco CCNA 200-301 exam prep."
+deckhand new-section --deck ccna --id l1-basics --name "L1 Basics" --order 1 --context "OSI model, cabling, switching basics."
 
 deckhand import new-cards.yaml --dry-run        # bulk add, then without --dry-run
 deckhand validate

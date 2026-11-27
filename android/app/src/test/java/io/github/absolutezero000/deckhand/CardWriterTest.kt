@@ -112,6 +112,12 @@ class CardWriterTest {
         assertEquals(3, added.second.size)
     }
 
+    @Test fun keepsSectionContextAndUnknownKeys() {
+        val withContext = SECTION_YAML.replace("  order: 1\n", "  order: 1\n  context: Daily git commands.\n  future: kept\n")
+        val out = CardWriter.render(CardWriter.applyTo(CardWriter.parse(withContext), CardChange.Upsert(edited)))
+        assertTrue(out, out.startsWith("section:\n  id: \"everyday\"\n  name: \"Everyday\"\n  order: 1\n  context: \"Daily git commands.\"\n  future: \"kept\"\n"))
+    }
+
     @Test fun emptySectionAfterDeletingEverything() {
         var p = CardWriter.parse(SECTION_YAML)
         p = CardWriter.applyTo(p, CardChange.Delete("git", "everyday", "git-yes-or-no")).let { it.first to it.second.toMutableList() }

@@ -1,11 +1,19 @@
 package io.github.absolutezero000.deckhand.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalContext
+import io.github.absolutezero000.deckhand.domain.AskAi
+import io.github.absolutezero000.deckhand.domain.CardContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,6 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.Button
@@ -94,7 +103,7 @@ import kotlin.math.min
 /** "*" as the deck id studies every deck together. */
 const val ALL_DECKS = "*"
 
-data class CardLabel(val deck: String, val section: String, val accent: Color)
+data class CardLabel(val deck: String, val section: String, val accent: Color, val context: CardContext)
 
 data class StudyUi(
     val loading: Boolean = true,
@@ -163,7 +172,12 @@ class StudyViewModel(
         val map = HashMap<String, CardLabel>()
         decks.forEachIndexed { i, d ->
             val accent = deckAccent(i)
-            for (s in repo.dao.sections(d.id)) map["${d.id}/${s.id}"] = CardLabel(d.name, s.name, accent)
+            for (s in repo.dao.sections(d.id)) {
+                map["${d.id}/${s.id}"] = CardLabel(
+                    d.name, s.name, accent,
+                    CardContext(d.name, d.description, d.context, s.name, s.context),
+                )
+            }
         }
         labels = map
     }
@@ -305,6 +319,10 @@ fun StudyScreen(
                 navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Close") } },
                 actions = {
                     if (!ui.done && ui.card != null) {
+                        val ctx = LocalContext.current
+                        IconButton(onClick = { ui.label?.let { askAi(ctx, ui.card, it.context) } }) {
+                            Icon(Icons.Outlined.AutoAwesome, "Ask AI about this card")
+                        }
                         IconButton(onClick = { onEdit(ui.card.id) }) { Icon(Icons.Outlined.Edit, "Edit this card") }
                         IconButton(onClick = { vm.undo() }, enabled = ui.canUndo) {
                             Icon(Icons.AutoMirrored.Filled.Undo, "Undo")
@@ -619,4 +637,17 @@ private fun Summary(ui: StudyUi, onReviewMissed: () -> Unit, onKeepGoing: () -> 
             Text("Done", style = MaterialTheme.typography.titleSmall)
         }
     }
+}
+
+/**
+ * Ask AI: copies the card with its deck and lesson context, then opens the share sheet so it can go
+ * straight into an AI app (or be pasted from the clipboard into any chat).
+ */
+private fun askAi(context: Context, card: CardEntity, ctx: CardContext) {
+    val text = AskAi.prompt(card, ctx)
+    context.getSystemService(ClipboardManager::class.java)
+        ?.setPrimaryClip(ClipData.newPlainText("Flashcard for AI", text))
+    Toast.makeText(context, "Copied with context. Pick an AI app or paste it anywhere.", Toast.LENGTH_SHORT).show()
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+    context.startActivity(Intent.createChooser(send, "Ask AI about this card"))
 }

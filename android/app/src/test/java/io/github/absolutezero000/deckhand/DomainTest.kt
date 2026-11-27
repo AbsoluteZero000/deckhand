@@ -73,6 +73,12 @@ class QueueTest {
         assertEquals(listOf("c", "d"), s2)
     }
 
+    @Test fun newCardsTakeTurnsAcrossSections() {
+        val q = Queue.build(cards, emptyMap(), Filter(), Mode.DUE, today = 0, newAllowance = 4)
+        assertEquals(listOf("a", "c", "b", "d"), q)
+        assertEquals(listOf("a", "c", "b", "d", "e"), Queue.mixNew(cards))
+    }
+
     @Test fun practiceIsSoonestDueFirstThenUnseen() {
         val progress = mapOf("d" to due("d", 30), "b" to due("b", 12), "e" to due("e", 12))
         val q = Queue.build(cards, progress, Filter(), Mode.PRACTICE, today = 10, newAllowance = 0)
@@ -85,7 +91,7 @@ class QueueTest {
         val seen = mapOf("a" to due("a", 15), "b" to due("b", 12))
         val (k1, ids1) = Queue.more(cards, seen, Filter(), today = 10, batch = 2)
         assertEquals(io.github.absolutezero000.deckhand.domain.MoreKind.NEW, k1)
-        assertEquals(listOf("c", "d"), ids1)
+        assertEquals(listOf("c", "e"), ids1) // mixed across sections
         assertTrue(Queue.schedules(Mode.MORE, k1))
         // everything seen, nothing due: practice the soonest-due cards, schedule untouched.
         val all = cards.associate { it.id to due(it.id, 20L + it.id[0].code) } + ("b" to due("b", 11))

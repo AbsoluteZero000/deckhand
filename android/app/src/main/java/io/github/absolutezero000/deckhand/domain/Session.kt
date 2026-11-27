@@ -24,7 +24,7 @@ data class Filter(val sections: Set<String> = emptySet(), val tags: Set<String> 
 object Queue {
     /**
      * Cards for a session, in study order.
-     * DUE: due cards (oldest due first, then deck order), then new cards in deck order up to [newAllowance].
+     * DUE: due cards (oldest due first, then deck order), then new cards mixed across sections up to [newAllowance].
      * PRACTICE: every matching card: seen cards soonest due first, then unseen cards in deck order.
      * [cards] must already be in deck order.
      */
@@ -36,14 +36,14 @@ object Queue {
         if (mode == Mode.PRACTICE) {
             val (seen, unseen) = matching.withIndex().partition { (_, c) -> c.id in progress }
             return seen.sortedWith(compareBy({ progress.getValue(it.value.id).dueDay }, { it.index })).map { it.value.id } +
-                unseen.map { it.value.id }
+                mixNew(unseen.map { it.value })
         }
         if (mode == Mode.MORE) return more(cards, progress, filter, today).second
         val due = matching.withIndex()
             .mapNotNull { (i, c) -> progress[c.id]?.takeIf { it.dueDay <= today }?.let { Triple(c.id, it.dueDay, i) } }
             .sortedWith(compareBy({ it.second }, { it.third }))
             .map { it.first }
-        val fresh = matching.filter { it.id !in progress }.take(newAllowance.coerceAtLeast(0)).map { it.id }
+        val fresh = mixNew(matching.filter { it.id !in progress }).take(newAllowance.coerceAtLeast(0))
         return due + fresh
     }
 
@@ -59,13 +59,24 @@ object Queue {
     ): Pair<MoreKind, List<String>> {
         val matching = cards.filter(filter::matches)
         val due = build(cards, progress, filter, Mode.DUE, today, newAllowance = 0)
-        val fresh = matching.filter { it.id !in progress }.take(batch).map { it.id }
+        val fresh = mixNew(matching.filter { it.id !in progress }).take(batch)
         if (due.isNotEmpty() || fresh.isNotEmpty()) return MoreKind.NEW to (due + fresh)
         val ahead = matching.withIndex()
             .mapNotNull { (i, c) -> progress[c.id]?.let { Triple(c.id, it.dueDay, i) } }
             .sortedWith(compareBy({ it.second }, { it.third }))
             .take(batch).map { it.first }
         return (if (ahead.isEmpty()) MoreKind.NONE else MoreKind.AHEAD) to ahead
+    }
+
+    /**
+     * New cards taken in turn from each section (and deck), so a day's new cards span the lessons
+     * instead of all coming from the first one. Each section keeps its own card order.
+     */
+    fun mixNew(unseen: List<CardEntity>): List<String> {
+        val groups = unseen.groupBy { it.deckId to it.sectionId }.values.map { it.iterator() }
+        val out = ArrayList<String>(unseen.size)
+        while (out.size < unseen.size) for (g in groups) if (g.hasNext()) out += g.next().id
+        return out
     }
 
     /** Whether grades in this session update the schedule. */

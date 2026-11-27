@@ -53,6 +53,9 @@ Install the APK from the latest `app-v*` [release](https://github.com/AbsoluteZe
 Tap a card to flip it, swipe right if you knew it and left if you missed it. You can study a whole deck,
 some sections, or only cards with certain tags, the cards due today (**Due**), more new cards past the daily limit (**New**), or everything without touching
 the schedule (**Practice**).
+New cards rotate through the lessons, so each day covers all of them.
+**Ask AI** (sparkle icon while studying) copies the card with its deck and lesson `context` and opens the share
+sheet, so you can ask any AI app about it.
 Progress stays on the phone; **Settings → Export progress** saves a backup file.
 **Try the example deck** on the first screen shows the app without connecting a repo.
 Design: [docs/app-design.md](docs/app-design.md). Releasing: [docs/releasing.md](docs/releasing.md).
