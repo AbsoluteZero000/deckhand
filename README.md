@@ -54,6 +54,7 @@ Tap a card to flip it, swipe right if you knew it and left if you missed it. You
 some sections, or only cards with certain tags, the cards due today (**Due**), more new cards past the daily limit (**New**), or everything without touching
 the schedule (**Practice**).
 New cards rotate through the lessons, so each day covers all of them.
+**Search** (magnifier on Home) finds cards in every deck by keyword and can practice just the matches.
 **Ask AI** (sparkle icon while studying) copies the card with its deck and lesson `context` and opens the share
 sheet, so you can ask any AI app about it.
 Progress stays on the phone; **Settings → Export progress** saves a backup file.

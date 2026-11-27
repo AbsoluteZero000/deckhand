@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -145,6 +146,7 @@ fun HomeScreen(
     onStudyAll: () -> Unit,
     onKeepGoing: () -> Unit,
     onSettings: () -> Unit,
+    onSearch: () -> Unit,
 ) {
     val vm = viewModel { HomeViewModel(repo) }
     val data by vm.data.collectAsStateWithLifecycle()
@@ -167,6 +169,7 @@ fun HomeScreen(
                         syncing = vm.syncing,
                         onSync = { vm.refresh(force = true) },
                         onSettings = onSettings,
+                        onSearch = onSearch,
                     )
                 }
                 val d = data
@@ -196,7 +199,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(showSync: Boolean, syncing: Boolean, onSync: () -> Unit, onSettings: () -> Unit) {
+private fun Header(showSync: Boolean, syncing: Boolean, onSync: () -> Unit, onSettings: () -> Unit, onSearch: () -> Unit) {
     val hour = LocalTime.now().hour
     val greeting = when (hour) {
         in 5..11 -> "Good morning"
@@ -208,6 +211,7 @@ private fun Header(showSync: Boolean, syncing: Boolean, onSync: () -> Unit, onSe
             Text(greeting, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Let's study", style = MaterialTheme.typography.headlineLarge)
         }
+        IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Search cards") }
         if (showSync) IconButton(onClick = onSync, enabled = !syncing) {
             Icon(Icons.Filled.Sync, contentDescription = "Sync now")
         }

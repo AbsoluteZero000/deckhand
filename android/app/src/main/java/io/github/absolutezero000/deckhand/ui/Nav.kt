@@ -1,5 +1,6 @@
 package io.github.absolutezero000.deckhand.ui
 
+import android.net.Uri
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,6 +63,7 @@ private fun NavRoot(repo: Repository, startConfigured: Boolean) {
                 onStudyAll = { nav.navigate("study/$ALL_DECKS?mode=${Mode.DUE.name}") },
                 onKeepGoing = { nav.navigate("study/$ALL_DECKS?mode=${Mode.MORE.name}") },
                 onSettings = { nav.navigate("settings") },
+                onSearch = { nav.navigate("browse/$ALL_DECKS") },
             )
         }
         composable("choose/{deck}", arguments = listOf(navArgument("deck") { type = NavType.StringType })) { e ->
@@ -79,12 +81,13 @@ private fun NavRoot(repo: Repository, startConfigured: Boolean) {
             )
         }
         composable(
-            "study/{deck}?mode={mode}&sections={sections}&tags={tags}",
+            "study/{deck}?mode={mode}&sections={sections}&tags={tags}&q={q}",
             arguments = listOf(
                 navArgument("deck") { type = NavType.StringType },
                 navArgument("mode") { type = NavType.StringType; defaultValue = Mode.DUE.name },
                 navArgument("sections") { type = NavType.StringType; defaultValue = "" },
                 navArgument("tags") { type = NavType.StringType; defaultValue = "" },
+                navArgument("q") { type = NavType.StringType; defaultValue = "" },
             ),
         ) { e ->
             val a = e.arguments!!
@@ -93,7 +96,7 @@ private fun NavRoot(repo: Repository, startConfigured: Boolean) {
                 repo = repo,
                 deckId = a.getString("deck")!!,
                 mode = Mode.valueOf(a.getString("mode")!!),
-                filter = Filter(set("sections"), set("tags")),
+                filter = Filter(set("sections"), set("tags"), a.getString("q").orEmpty()),
                 onClose = { nav.popBackStack() },
                 onEdit = { nav.navigate("edit?card=$it") },
             )
@@ -106,6 +109,9 @@ private fun NavRoot(repo: Repository, startConfigured: Boolean) {
                 onBack = { nav.popBackStack() },
                 onEdit = { nav.navigate("edit?card=$it") },
                 onNew = { section -> nav.navigate("edit?deck=$deck" + (section?.let { "&section=$it" } ?: "")) },
+                onPractice = { q, section ->
+                    nav.navigate("study/$deck?mode=${Mode.PRACTICE.name}&sections=${section.orEmpty()}&q=${Uri.encode(q)}")
+                },
             )
         }
         composable(
