@@ -69,7 +69,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.absolutezero000.deckhand.BuildConfig
@@ -77,23 +83,38 @@ import io.github.absolutezero000.deckhand.data.GitHubAuth
 import io.github.absolutezero000.deckhand.data.Repository
 import io.github.absolutezero000.deckhand.data.SyncException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 
 /** Where "Connect with GitHub" is. */
 sealed interface GhState {
     data object Idle : GhState
     data object Starting : GhState
-    data class Code(val userCode: String, val uri: String) : GhState
+    data class Code(val userCode: String, val uri: String, val reachable: Boolean = true) : GhState
     data class Pick(val login: String, val repos: List<String>) : GhState
     data class Connecting(val repo: String) : GhState
     data class Failed(val message: String) : GhState
 }
 
-class SetupViewModel(private val repo: Repository) : ViewModel() {
+class SetupViewModel(private val repo: Repository, private val saved: SavedStateHandle) : ViewModel() {
     var state by mutableStateOf<GhState>(GhState.Idle); private set
     private var token: String? = null
     private var job: Job? = null
+    /** Wakes the poll loop early, e.g. when the person comes back from the browser. */
+    private val wake = Channel<Unit>(Channel.CONFLATED)
+
+    init {
+        // Android may have closed the app while the person was in the browser: pick the sign-in back up.
+        val dc = saved.get<String>(K_DEVICE)
+        val exp = saved.get<Long>(K_EXPIRES) ?: 0
+        if (dc != null && System.currentTimeMillis() < exp) {
+            waitFor(dc, saved[K_USER] ?: "", saved[K_URI] ?: "", saved[K_INTERVAL] ?: 5, exp)
+        } else clearSaved()
+    }
+
+    /** Called when the screen is resumed: check right away instead of waiting for the next poll. */
+    fun onResume() { if (state is GhState.Code) wake.trySend(Unit) }
 
     val available get() = BuildConfig.GITHUB_CLIENT_ID.isNotBlank()
     val installUrl get() = "https://github.com/apps/${BuildConfig.GITHUB_APP_SLUG}/installations/new"
@@ -105,24 +126,46 @@ class SetupViewModel(private val repo: Repository) : ViewModel() {
             try {
                 val clientId = BuildConfig.GITHUB_CLIENT_ID
                 val code = repo.auth.start(clientId)
-                state = GhState.Code(code.user_code, code.verification_uri)
-                var interval = code.interval.coerceAtLeast(5)
-                val deadline = System.currentTimeMillis() + code.expires_in * 1000L
-                while (true) {
-                    delay(interval * 1000L)
-                    if (System.currentTimeMillis() > deadline) { state = GhState.Failed("The code expired. Try again."); return@launch }
-                    when (val p = repo.auth.poll(clientId, code.device_code)) {
-                        GitHubAuth.Poll.Pending -> Unit
-                        is GitHubAuth.Poll.SlowDown -> interval = p.interval
-                        GitHubAuth.Poll.Expired -> { state = GhState.Failed("The code expired. Try again."); return@launch }
-                        GitHubAuth.Poll.Denied -> { state = GhState.Failed("Sign-in was cancelled on GitHub."); return@launch }
-                        is GitHubAuth.Poll.Token -> { token = p.token; loadRepos(); return@launch }
-                    }
-                }
+                val expires = System.currentTimeMillis() + code.expires_in * 1000L
+                saved[K_DEVICE] = code.device_code; saved[K_USER] = code.user_code
+                saved[K_URI] = code.verification_uri; saved[K_INTERVAL] = code.interval; saved[K_EXPIRES] = expires
+                waitFor(code.device_code, code.user_code, code.verification_uri, code.interval, expires)
             } catch (e: SyncException) {
                 state = GhState.Failed(e.message ?: "Couldn't connect to GitHub.")
             }
         }
+    }
+
+    private fun waitFor(deviceCode: String, userCode: String, uri: String, interval: Int, expires: Long) {
+        job?.cancel()
+        state = GhState.Code(userCode, uri)
+        job = viewModelScope.launch {
+            val result = try {
+                repo.auth.waitForToken(
+                    BuildConfig.GITHUB_CLIENT_ID, deviceCode, interval, expires,
+                    sleep = { ms -> withTimeoutOrNull(ms) { wake.receive() } },
+                    onReachable = { ok -> (state as? GhState.Code)?.let { if (it.reachable != ok) state = it.copy(reachable = ok) } },
+                )
+            } catch (e: SyncException) {
+                clearSaved(); state = GhState.Failed(e.message ?: "Couldn't connect to GitHub."); return@launch
+            }
+            clearSaved()
+            when (result) {
+                is GitHubAuth.Poll.Token -> { token = result.token; loadRepos() }
+                GitHubAuth.Poll.Denied -> state = GhState.Failed("Sign-in was cancelled on GitHub.")
+                else -> state = GhState.Failed("The code expired. Try again.")
+            }
+        }
+    }
+
+    private fun clearSaved() = listOf(K_DEVICE, K_USER, K_URI, K_INTERVAL, K_EXPIRES).forEach { saved.remove<Any>(it) }
+
+    private companion object {
+        const val K_DEVICE = "gh_device_code"
+        const val K_USER = "gh_user_code"
+        const val K_URI = "gh_uri"
+        const val K_INTERVAL = "gh_interval"
+        const val K_EXPIRES = "gh_expires"
     }
 
     /** (Re)loads the repos the app is installed on, e.g. after the person installs it on another repo. */
@@ -159,7 +202,7 @@ class SetupViewModel(private val repo: Repository) : ViewModel() {
     }
 
     fun cancel() {
-        job?.cancel(); token = null; error = null
+        job?.cancel(); token = null; error = null; clearSaved()
         state = GhState.Idle
     }
 }
@@ -167,7 +210,13 @@ class SetupViewModel(private val repo: Repository) : ViewModel() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SetupScreen(repo: Repository, canGoBack: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
-    val vm = viewModel { SetupViewModel(repo) }
+    val vm = viewModel { SetupViewModel(repo, createSavedStateHandle()) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) vm.onResume() }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
     val ctx = LocalContext.current
     var showToken by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -269,7 +318,7 @@ private fun GitHubConnect(vm: SetupViewModel, ctx: Context, onDone: () -> Unit) 
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 HSpace(10.dp)
                 Text(
-                    "Waiting for you to approve on GitHub…",
+                    if (s.reachable) "Waiting for you to approve on GitHub…" else "Can't reach GitHub right now. Still trying…",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )

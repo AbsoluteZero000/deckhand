@@ -37,6 +37,8 @@ class GitHubAuth(
         data class Token(val token: String) : Poll
         data object Expired : Poll
         data object Denied : Poll
+        /** GitHub couldn't be reached or answered with a server error; worth asking again. */
+        data object Unreachable : Poll
     }
 
     @Serializable
@@ -70,16 +72,54 @@ class GitHubAuth(
             .build()
         val req = Request.Builder().url("$webBase/login/oauth/access_token").post(body)
             .header("Accept", "application/json").build()
-        call(req) { code, text ->
-            if (code != 200) throw SyncException(SyncException.Kind.OTHER, "GitHub sign-in failed ($code).")
-            val r = json.decodeFromString<TokenResponse>(text)
-            when {
-                r.access_token != null -> Poll.Token(r.access_token)
-                r.error == "authorization_pending" -> Poll.Pending
-                r.error == "slow_down" -> Poll.SlowDown(r.interval ?: 10)
-                r.error == "expired_token" -> Poll.Expired
-                r.error == "access_denied" -> Poll.Denied
-                else -> throw SyncException(SyncException.Kind.OTHER, "GitHub sign-in failed (${r.error}).")
+        val r = try {
+            call(req) { code, text ->
+                when {
+                    code == 429 || code >= 500 -> null
+                    code != 200 -> throw SyncException(SyncException.Kind.OTHER, "GitHub sign-in failed ($code).")
+                    else -> runCatching { json.decodeFromString<TokenResponse>(text) }.getOrNull()
+                }
+            }
+        } catch (e: SyncException) {
+            if (e.kind == SyncException.Kind.OFFLINE) null else throw e
+        } ?: return@withContext Poll.Unreachable
+        when {
+            r.access_token != null -> Poll.Token(r.access_token)
+            r.error == "authorization_pending" -> Poll.Pending
+            r.error == "slow_down" -> Poll.SlowDown(r.interval ?: 10)
+            r.error == "expired_token" -> Poll.Expired
+            r.error == "access_denied" -> Poll.Denied
+            else -> throw SyncException(SyncException.Kind.OTHER, "GitHub sign-in failed (${r.error}).")
+        }
+    }
+
+    /**
+     * Polls until the person approves, denies, or the code expires at [expiresAtMillis].
+     * Network drops and GitHub server errors don't end it (the phone often cuts a background
+     * app's network while the person is in the browser); they're retried, and [onReachable]
+     * reports whether the last attempt got through. [sleep] waits between polls and may return
+     * early (e.g. when the app comes back to the foreground).
+     */
+    suspend fun waitForToken(
+        clientId: String,
+        deviceCode: String,
+        intervalSeconds: Int,
+        expiresAtMillis: Long,
+        now: () -> Long = System::currentTimeMillis,
+        sleep: suspend (Long) -> Unit,
+        onReachable: (Boolean) -> Unit = {},
+    ): Poll {
+        var interval = intervalSeconds.coerceAtLeast(5)
+        var failures = 0
+        while (true) {
+            // Back off a little after repeated failures, but never past 30 s.
+            sleep(minOf(interval * 1000L * (1 + failures), 30_000L))
+            if (now() > expiresAtMillis) return Poll.Expired
+            when (val p = poll(clientId, deviceCode)) {
+                Poll.Pending -> { failures = 0; onReachable(true) }
+                is Poll.SlowDown -> { interval = p.interval; failures = 0; onReachable(true) }
+                Poll.Unreachable -> { failures = minOf(failures + 1, 5); onReachable(false) }
+                else -> return p
             }
         }
     }

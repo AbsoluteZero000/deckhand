@@ -53,6 +53,42 @@ class GitHubAuthTest {
         assertTrue(req.body.readUtf8().contains("grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"))
     }
 
+    @Test fun serverErrorsAndGarbageAreUnreachableNotFatal() = runTest {
+        server.enqueue(MockResponse().setResponseCode(502))
+        server.enqueue(MockResponse().setResponseCode(429))
+        server.enqueue(MockResponse().setBody("<html>oops</html>"))
+        repeat(3) { assertEquals(GitHubAuth.Poll.Unreachable, auth.poll("Iv1.client", "dc")) }
+    }
+
+    @Test fun dropsAreUnreachable() = runTest {
+        server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START))
+        assertEquals(GitHubAuth.Poll.Unreachable, auth.poll("Iv1.client", "dc"))
+    }
+
+    @Test fun waitingSurvivesDropsUntilApproved() = runTest {
+        server.enqueue(MockResponse().setBody("""{"error":"authorization_pending"}"""))
+        server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START))
+        server.enqueue(MockResponse().setResponseCode(503))
+        server.enqueue(MockResponse().setBody("""{"error":"slow_down","interval":10}"""))
+        server.enqueue(MockResponse().setBody("""{"access_token":"ghu_ok","token_type":"bearer"}"""))
+        val reach = mutableListOf<Boolean>()
+        val sleeps = mutableListOf<Long>()
+        val r = auth.waitForToken(
+            "Iv1.client", "dc", intervalSeconds = 5, expiresAtMillis = Long.MAX_VALUE,
+            sleep = { sleeps += it }, onReachable = { reach += it },
+        )
+        assertEquals(GitHubAuth.Poll.Token("ghu_ok"), r)
+        assertEquals(listOf(true, false, false, true), reach)
+        assertEquals(listOf(5_000L, 5_000L, 10_000L, 15_000L, 10_000L), sleeps)
+    }
+
+    @Test fun waitingStopsWhenTheCodeExpires() = runTest {
+        var t = 0L
+        val r = auth.waitForToken("Iv1.client", "dc", 5, expiresAtMillis = 1_000, now = { t }, sleep = { t += it })
+        assertEquals(GitHubAuth.Poll.Expired, r)
+        assertEquals(0, server.requestCount)
+    }
+
     @Test fun listsReposAcrossInstallationsAndPages() = runTest {
         server.enqueue(MockResponse().setBody("""{"total_count":2,"installations":[{"id":1},{"id":2}]}"""))
         val page1 = (1..100).joinToString(",") { """{"full_name":"me/r$it"}""" }
