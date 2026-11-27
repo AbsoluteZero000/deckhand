@@ -35,8 +35,9 @@ class Settings(private val context: Context) {
     private object K {
         val repo = stringPreferencesKey("repo")
         val token = stringPreferencesKey("token_enc")
-        val etag = stringPreferencesKey("etag")
-        val version = stringPreferencesKey("content_version")
+        // "_2" since deck/section context: new keys make existing installs download the deck once more.
+        val etag = stringPreferencesKey("etag_2")
+        val version = stringPreferencesKey("content_version_2")
         val lastSync = longPreferencesKey("last_sync_millis")
         val lastError = stringPreferencesKey("last_sync_error")
         val newPerDay = intPreferencesKey("new_per_day")

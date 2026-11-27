@@ -37,8 +37,8 @@ DECKHAND_REPO = "AbsoluteZero000/deckhand"
 
 ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$")
 TAG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
-DECK_KEYS = ["id", "name", "description", "order"]
-SECTION_KEYS = ["id", "name", "order"]
+DECK_KEYS = ["id", "name", "description", "order", "context"]
+SECTION_KEYS = ["id", "name", "order", "context"]
 CARD_KEYS = ["id", "front", "back", "why", "tags"]
 
 
@@ -196,6 +196,8 @@ class Repo:
                 errs.append(f"{p}: 'name' is required")
             if "order" in m and not isinstance(m["order"], int):
                 errs.append(f"{p}: 'order' must be a whole number")
+            if m.get("context") is not None and not isinstance(m["context"], str):
+                errs.append(f"{p}: 'context' must be text")
             if not ID_RE.match(did):
                 errs.append(f"{p}: deck folder name must be lowercase letters, digits and dashes")
             for sid, sec in deck["sections"].items():
@@ -214,6 +216,8 @@ class Repo:
                     errs.append(f"{sp}: section.name is required")
                 if "order" in sm and not isinstance(sm["order"], int):
                     errs.append(f"{sp}: section.order must be a whole number")
+                if sm.get("context") is not None and not isinstance(sm["context"], str):
+                    errs.append(f"{sp}: section.context must be text")
                 if not isinstance(sec["cards"], list):
                     errs.append(f"{sp}: 'cards' must be a list")
                     continue
@@ -262,11 +266,19 @@ class Repo:
         decks, cards = [], []
         for did, deck in sorted(self.decks.items(), key=lambda kv: (kv[1]["meta"].get("order", 1e9), kv[0])):
             secs = sorted(deck["sections"].items(), key=lambda kv: (kv[1]["meta"].get("order", 1e9), kv[0]))
-            decks.append({
+            sections = []
+            for sid, s in secs:
+                sec = {"id": sid, "name": s["meta"]["name"], "order": s["meta"].get("order", 0)}
+                if (s["meta"].get("context") or "").strip():
+                    sec["context"] = s["meta"]["context"].strip()
+                sections.append(sec)
+            d = {
                 "id": did, "name": deck["meta"]["name"], "description": deck["meta"].get("description", ""),
-                "order": deck["meta"].get("order", 0),
-                "sections": [{"id": sid, "name": s["meta"]["name"], "order": s["meta"].get("order", 0)} for sid, s in secs],
-            })
+                "order": deck["meta"].get("order", 0), "sections": sections,
+            }
+            if (deck["meta"].get("context") or "").strip():
+                d["context"] = deck["meta"]["context"].strip()
+            decks.append(d)
             n = 0
             for sid, s in secs:
                 for c in s["cards"]:
@@ -511,6 +523,8 @@ def cmd_new_deck(a):
     if a.description:
         meta["description"] = a.description
     meta["order"] = a.order if a.order is not None else len(r.decks) + 1
+    if a.context:
+        meta["context"] = a.context
     (ddir / "deck.yaml").write_text(dump_yaml(meta), encoding="utf-8", newline="\n")
     print(f"Created deck {a.id} at {rel(ddir)}")
     return 0
@@ -526,7 +540,10 @@ def cmd_new_section(a):
         raise Fail(f"Section '{a.id}' already exists in {a.deck}")
     path = CARDS_DIR / a.deck / f"{a.id}.yaml"
     order = a.order if a.order is not None else len(r.decks[a.deck]["sections"]) + 1
-    path.write_text(dump_yaml({"section": {"id": a.id, "name": a.name, "order": order}, "cards": []}), encoding="utf-8", newline="\n")
+    head = {"id": a.id, "name": a.name, "order": order}
+    if a.context:
+        head["context"] = a.context
+    path.write_text(dump_yaml({"section": head, "cards": []}), encoding="utf-8", newline="\n")
     print(f"Created section {a.deck}/{a.id} at {rel(path)}")
     return 0
 
@@ -666,11 +683,13 @@ def main(argv=None):
     s = sub.add_parser("new-deck", help="create a deck (top-level group)")
     s.add_argument("id"); s.add_argument("--name", required=True)
     s.add_argument("--description"); s.add_argument("--order", type=int)
+    s.add_argument("--context", help="background for Ask AI: what the deck covers, level, exam")
     s.set_defaults(fn=cmd_new_deck)
 
     s = sub.add_parser("new-section", help="create a section inside a deck")
     s.add_argument("--deck", required=True); s.add_argument("--id", required=True)
     s.add_argument("--name", required=True); s.add_argument("--order", type=int)
+    s.add_argument("--context", help="background for Ask AI, specific to this section")
     s.set_defaults(fn=cmd_new_section)
 
     s = sub.add_parser("build", help="write dist/deck.json and dist/manifest.json")

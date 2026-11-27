@@ -1,6 +1,7 @@
 package io.github.absolutezero000.deckhand.data
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -14,16 +15,25 @@ import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 @Entity(tableName = "decks")
-data class DeckEntity(@PrimaryKey val id: String, val name: String, val description: String, val ord: Int)
+data class DeckEntity(
+    @PrimaryKey val id: String, val name: String, val description: String, val ord: Int,
+    /** Background for Ask AI (optional in the cards repo). */
+    @ColumnInfo(defaultValue = "") val context: String = "",
+)
 
 @Entity(tableName = "sections", primaryKeys = ["deckId", "id"])
-data class SectionEntity(val deckId: String, val id: String, val name: String, val ord: Int)
+data class SectionEntity(
+    val deckId: String, val id: String, val name: String, val ord: Int,
+    @ColumnInfo(defaultValue = "") val context: String = "",
+)
 
 @Entity(tableName = "cards", indices = [Index("deckId")])
 data class CardEntity(
@@ -189,7 +199,7 @@ interface DeckDao {
 
 @Database(
     entities = [DeckEntity::class, SectionEntity::class, CardEntity::class, Progress::class, ReviewDay::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -198,6 +208,14 @@ abstract class DeckhandDb : RoomDatabase() {
 
     companion object {
         fun open(context: Context): DeckhandDb =
-            Room.databaseBuilder(context, DeckhandDb::class.java, "deckhand.db").build()
+            Room.databaseBuilder(context, DeckhandDb::class.java, "deckhand.db").addMigrations(MIGRATION_1_2).build()
+
+        /** v2 adds deck and section context. Settings' content keys changed too, so the next sync refetches. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE decks ADD COLUMN context TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE sections ADD COLUMN context TEXT NOT NULL DEFAULT ''")
+            }
+        }
     }
 }

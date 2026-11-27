@@ -33,10 +33,11 @@ data class DeckJson(
     val description: String = "",
     val order: Int = 0,
     val sections: List<SectionJson> = emptyList(),
+    val context: String = "",
 )
 
 @Serializable
-data class SectionJson(val id: String, val name: String, val order: Int = 0)
+data class SectionJson(val id: String, val name: String, val order: Int = 0, val context: String = "")
 
 @Serializable
 data class CardJson(
@@ -51,7 +52,7 @@ data class CardJson(
 )
 
 fun DeckFile.toEntities(): Triple<List<DeckEntity>, List<SectionEntity>, List<CardEntity>> = Triple(
-    decks.map { DeckEntity(it.id, it.name, it.description, it.order) },
-    decks.flatMap { d -> d.sections.map { SectionEntity(d.id, it.id, it.name, it.order) } },
+    decks.map { DeckEntity(it.id, it.name, it.description, it.order, it.context) },
+    decks.flatMap { d -> d.sections.map { SectionEntity(d.id, it.id, it.name, it.order, it.context) } },
     cards.map { CardEntity(it.id, it.deck, it.section, it.front, it.back, it.why, it.tags, it.order) },
 )

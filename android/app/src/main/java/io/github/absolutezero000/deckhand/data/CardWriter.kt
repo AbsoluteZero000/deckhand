@@ -160,7 +160,11 @@ class CardWriter(
         fun render(parsed: Pair<Map<String, Any?>, List<Map<String, Any?>>>): String = buildString {
             val (section, cards) = parsed
             append("section:\n")
-            for (k in listOf("id", "name", "order")) section[k]?.let { append("  $k: ${scalar(it)}\n") }
+            // Known keys first, then any others, so fields like context survive an edit from the phone.
+            val known = listOf("id", "name", "order", "context")
+            for (k in known.filter { it in section } + section.keys.filterNot { it in known }) {
+                section[k]?.let { append("  $k: ${scalar(it)}\n") }
+            }
             if (cards.isEmpty()) {
                 append("cards: []\n"); return@buildString
             }
