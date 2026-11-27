@@ -15,10 +15,31 @@ enum class MoreKind { NEW, AHEAD, NONE }
 
 const val MORE_BATCH = 10
 
-/** Which cards of a deck to study. Empty sets mean "no restriction". Cards must have every tag. */
-data class Filter(val sections: Set<String> = emptySet(), val tags: Set<String> = emptySet()) {
+/**
+ * Which cards of a deck to study. Empty sets mean "no restriction". Cards must have every tag,
+ * and every word of [query] (see [matchesText]).
+ */
+data class Filter(
+    val sections: Set<String> = emptySet(),
+    val tags: Set<String> = emptySet(),
+    val query: String = "",
+) {
     fun matches(c: CardEntity) =
-        (sections.isEmpty() || c.sectionId in sections) && c.tags.containsAll(tags)
+        (sections.isEmpty() || c.sectionId in sections) && c.tags.containsAll(tags) && matchesText(c, query)
+
+    companion object {
+        /**
+         * Keyword search over a card's front, back, why and tags: case-insensitive, ignores the
+         * `backticks` used for code, and every word must appear somewhere in the card. Blank matches all.
+         */
+        fun matchesText(c: CardEntity, query: String): Boolean {
+            val words = query.lowercase().replace("`", "").split(Regex("\\s+")).filter { it.isNotBlank() }
+            if (words.isEmpty()) return true
+            val text = listOf(c.front, c.back, c.why, c.tags.joinToString(" ")).joinToString("\n")
+                .lowercase().replace("`", "")
+            return words.all { it in text }
+        }
+    }
 }
 
 object Queue {

@@ -92,6 +92,8 @@ Times are in whole local days (`epoch day`). A card with no `progress` row is **
   section/tag filters): anything still due plus the next 10 new cards past the daily limit, scheduled normally. When no
   new cards are left, Keep going offers **Practice** on the 10 cards due soonest, graded without touching their schedule,
   because reviewing early would stretch their gaps unfairly.
+- **Search** (Home top bar) opens Browse over every deck: every word must appear in the card's front, back, why or
+  tags (case-insensitive, backticks ignored); **Practice N matching cards** starts a Practice session with that query.
 - **Ask AI** (Study top bar) builds a prompt from the deck name, description and `context`, the section name and
   `context`, then the card (front, back, why, tags); copies it to the clipboard and opens the share sheet.
 - **Undo** restores the previous `progress` row (or deletes it if the card was new) and puts the card back in front.

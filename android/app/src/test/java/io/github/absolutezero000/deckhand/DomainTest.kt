@@ -79,6 +79,20 @@ class QueueTest {
         assertEquals(listOf("a", "c", "b", "d", "e"), Queue.mixNew(cards))
     }
 
+    @Test fun keywordSearchMatchesEveryWordAnywhere() {
+        val c = card("k", tags = listOf("exam-trap")).copy(
+            front = "What does `git status` show?", back = "Staged and unstaged changes.", why = "Run it often.",
+        )
+        listOf("", "GIT status", "git status", "unstaged", "often", "exam-trap", "status staged").forEach {
+            assertTrue(it, io.github.absolutezero000.deckhand.domain.Filter.matchesText(c, it))
+        }
+        listOf("rebase", "git rebase").forEach {
+            assertFalse(it, io.github.absolutezero000.deckhand.domain.Filter.matchesText(c, it))
+        }
+        val q = Queue.build(cards, emptyMap(), Filter(tags = setOf("x"), query = "F"), Mode.PRACTICE, 0, 0)
+        assertEquals(listOf("a", "b"), q)
+    }
+
     @Test fun practiceIsSoonestDueFirstThenUnseen() {
         val progress = mapOf("d" to due("d", 30), "b" to due("b", 12), "e" to due("e", 12))
         val q = Queue.build(cards, progress, Filter(), Mode.PRACTICE, today = 10, newAllowance = 0)
